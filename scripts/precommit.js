@@ -16,7 +16,13 @@ let files = data
     })
 
 let srcFiles = files.filter(f => {
-    return f.startsWith('src') && (f.endsWith('.js') || f.endsWith('.jsx'))
+    return (
+        f.startsWith('src') &&
+        (f.endsWith('.js') ||
+            f.endsWith('.jsx') ||
+            f.endsWith('.tsx') ||
+            f.endsWith('.ts'))
+    )
 })
 
 if (srcFiles.length > 0) {
