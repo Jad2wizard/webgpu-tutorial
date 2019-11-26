@@ -1,13 +1,18 @@
 {
-  "compilerOptions": {
-    "outDir": "./dist/",
-    "sourceMap": true,
-    "noImplicitAny": true,
-    "module": "commonjs",
-    "target": "es6",
-    "jsx": "react"
-  },
-  "include": [
-    "./src/**/*"
-  ]
+	"compilerOptions": {
+		"sourceMap": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"module": "commonjs",
+		"target": "es6",
+		"jsx": "react",
+		"typeRoots": ["node_modules/@types", "./typings/*"],
+		"baseUrl": ".",
+		"paths": {
+			"three-examples/*": ["node_modules/three/examples/*"],
+			"utils": ["src/utils"]
+		}
+	},
+	"include": ["./src/**/*", "typings/global.d.ts"],
+	"exclude": ["node_modules"]
 }
