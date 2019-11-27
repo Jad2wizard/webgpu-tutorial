@@ -5,7 +5,6 @@
 	},
 	"explorer.confirmDelete": false,
 	"window.titleBarStyle": "custom",
-	"workbench.colorTheme": "Default Light+",
 	"sync.gist": "50f6226a8b7a78883e767ab9c7d00711",
 	"files.autoSave": "onFocusChange",
 	"prettier.requireConfig": true,

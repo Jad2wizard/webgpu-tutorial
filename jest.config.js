@@ -6,6 +6,7 @@ module.exports = {
 		'^.+\\.js?$': 'babel-jest',
 		'^.+\\.ts[x]?$': 'ts-jest'
 	},
+	testPathIgnorePatterns: ['<rootDir>/lib'],
 	moduleFileExtensions: ['tsx', 'ts', 'less', 'js', 'json', 'jsx'],
 	moduleNameMapper: {
 		'^utils(.*)$': '<rootDir>/src/utils$1',

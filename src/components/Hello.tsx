@@ -30,7 +30,7 @@ const Hello: React.FC<Props> = ({name, enthusiasmLevel = 1}) => {
 
 	const handleClick = useCallback(() => {
 		setCount(count + 1)
-	}, [])
+	}, [count])
 
 	return (
 		<div className={styles.hello}>
