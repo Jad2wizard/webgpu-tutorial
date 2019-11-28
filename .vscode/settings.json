@@ -16,5 +16,17 @@
 		"typescript",
 		"typescriptreact"
 	],
-	"typescript.tsdk": "node_modules/typescript/lib"
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"vim.normalModeKeyBindings": [
+		{
+			"before": ["K"],
+			"after": ["i", "<Enter>", "<Esc>"]
+		}
+	],
+	"vim.normalModeKeyBindingsNonRecursive": [
+		{
+			"before": ["<CR>"],
+			"after": ["o", "<Esc>"]
+		}
+	]
 }
