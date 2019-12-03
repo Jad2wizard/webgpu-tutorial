@@ -8,6 +8,7 @@
 	},
 	"extends": [
 		"eslint:recommended",
+		"plugin:react/recommended",
 		"plugin:@typescript-eslint/recommended",
 		"prettier"
 	],
@@ -27,6 +28,8 @@
 		"react-hooks/rules-of-hooks": "error",
 		"react-hooks/exhaustive-deps": "warn",
 		"no-console": "warn",
+		"no-unused-vars": "off",
+		"prefer-const": "off",
 		"eqeqeq": [
 			"error",
 			"always",
@@ -34,6 +37,21 @@
 				"null": "ignore"
 			}
 		],
-		"prettier/prettier": "error"
+		"prettier/prettier": "error",
+		"@typescript-eslint/no-unused-vars": "off",
+		"@typescript-eslint/no-empty-function": "off",
+		"@typescript-eslint/member-delimiter-style": [
+			"error",
+			{
+				"multiline": {
+					"delimiter": "none",
+					"requireLast": true
+				},
+				"singleline": {
+					"delimiter": "semi",
+					"requireLast": false
+				}
+			}
+		]
 	}
 }

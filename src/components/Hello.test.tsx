@@ -8,4 +8,5 @@ it('Test render', () => {
 	console.log('running...')
 	console.log(styles)
 	expect(hello.find('.' + styles.greeting).text()).toEqual('Hello jad!')
+	expect(hello.hasClass(styles.hello)).toEqual(true)
 })

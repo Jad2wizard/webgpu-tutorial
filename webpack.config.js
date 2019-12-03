@@ -73,12 +73,13 @@ module.exports = (env, argv) => {
 	}
 
 	if (isDev) {
-		config.devtool = 'inline-source-map'
 		config.mode = 'development'
+		config.devtool = 'inline-source-map'
 		config.plugins.push(new webpack.optimize.OccurrenceOrderPlugin())
 		config.plugins.push(new webpack.HotModuleReplacementPlugin())
 	} else {
 		config.mode = 'production'
+		config.devtool = 'source-map'
 	}
 	return config
 }

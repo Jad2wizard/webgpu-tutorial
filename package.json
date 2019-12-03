@@ -6,10 +6,12 @@
 	"scripts": {
 		"test": "jest --no-cache",
 		"start": "node app.js",
-		"build:dev": "npm run dll:dev && webpack --mode development",
-		"build": "npm run dll:prod && webpack --mode production",
-		"dll:prod": "webpack --config webpack.config.dll.js --mode production",
-		"dll:dev": "webpack --config webpack.config.dll.js --mode development",
+		"build:dev": "npm run build:dll:dev && webpack --mode development",
+		"build": "npm run build:dll:prod && webpack --mode production",
+		"build:dll:prod": "webpack --config webpack.config.dll.js --mode production",
+		"build:dll:dev": "webpack --config webpack.config.dll.js --mode development",
+		"build:bundle:dev": "webpack --mode development",
+		"build:debug": "node --inspect-brk=5858 ./node_modules/.bin/webpack --mode development",
 		"eslint": "git diff --name-status --cached head > diff.log && node scripts/precommit.js"
 	},
 	"author": "",
@@ -30,6 +32,7 @@
 		"@types/react": "^16.9.2",
 		"@types/react-dom": "^16.9.0",
 		"@types/react-redux": "^7.1.5",
+		"@types/redux": "^3.6.0",
 		"@types/three": "^0.103.2",
 		"@typescript-eslint/eslint-plugin": "^2.5.0",
 		"@typescript-eslint/parser": "^2.5.0",
@@ -44,6 +47,7 @@
 		"echarts": "^4.2.1",
 		"enzyme": "^3.10.0",
 		"enzyme-adapter-react-16": "^1.15.1",
+		"enzyme-to-json": "^3.4.3",
 		"eslint": "^5.16.0",
 		"eslint-config-prettier": "^6.7.0",
 		"eslint-plugin-prettier": "^3.1.1",
@@ -77,6 +81,7 @@
 		"react-router-redux": "^4.0.8",
 		"redux": "^4.0.4",
 		"redux-logger": "^3.0.6",
+		"redux-mock-store": "^1.5.3",
 		"redux-saga": "^1.0.2",
 		"reselect": "^4.0.0",
 		"source-map-loader": "^0.2.4",
@@ -108,6 +113,7 @@
 	},
 	"husky": {
 		"hooks": {
+			"pre-push": "npm test",
 			"pre-commit": "pretty-quick --staged && npm run eslint"
 		}
 	}

@@ -10,14 +10,12 @@ const {useEffect, useState, useCallback} = React
 // console.log(OrbitControls)
 // const control = new OrbitControls(new THREE.Camera())
 
-/* eslint-disable */
 interface Props {
 	name: string
 	enthusiasmLevel?: number
 }
-/* eslint-enable */
 
-const Hello: React.FC<Props> = ({name, enthusiasmLevel = 1}) => {
+const Hello: React.FC<Props> = ({name, enthusiasmLevel = 1}: Props) => {
 	const [count, setCount] = useState(enthusiasmLevel)
 
 	if (enthusiasmLevel <= 0) {
