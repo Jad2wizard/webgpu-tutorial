@@ -5,3 +5,4 @@ dist/js/*
 diff.log
 lib/*
 typings/*
+package-lock.json

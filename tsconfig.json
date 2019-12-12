@@ -6,7 +6,7 @@
 		"outDir": "./lib",
 		"declaration": true,
 		"declarationDir": "./typings",
-		"module": "commonjs",
+		"module": "commonjs", //tsc will throw ES6 module error if setting 'es6' in there
 		"target": "es6",
 		"jsx": "react",
 		"typeRoots": ["node_modules/@types", "./typings/*"],
