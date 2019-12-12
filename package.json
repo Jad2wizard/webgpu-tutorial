@@ -5,7 +5,9 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "jest --no-cache",
-		"start": "node app.js",
+		"start": "cross-env NODE_ENV=production && forever start app.js",
+		"start:dev": "node app.js",
+		"stop": "forever stop app.js",
 		"build:dev": "npm run build:dll:dev && webpack --mode development",
 		"build": "npm run build:dll:prod && webpack --mode production",
 		"build:dll:prod": "webpack --config webpack.config.dll.js --mode production",
@@ -98,6 +100,7 @@
 		"@babel/polyfill": "^7.4.0",
 		"cross-env": "^5.2.0",
 		"event-emitter": "^0.3.5",
+		"forever": "^1.0.0",
 		"koa": "^2.0.0",
 		"koa-body": "^4.1.1",
 		"koa-router": "^7.4.0",
