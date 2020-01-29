@@ -1,6 +1,12 @@
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
-import Hello from './components/Hello'
+import {Route} from 'react-router-dom'
+import {Provider} from 'react-redux'
+import {BrowserRouter as Router} from 'connect-redux-react-router'
+import store from './Store'
+import Login from './Pages/Session/Login'
+import Layout from './Pages/Layout'
+import styles from './index.less'
 
 /* eslint-disable */
 if ((module as any).hot) {
@@ -8,7 +14,18 @@ if ((module as any).hot) {
 }
 /* eslint-enable */
 
-ReactDOM.render(
-	<Hello name="Jad" enthusiasmLevel={3}></Hello>,
-	document.getElementById('main') as HTMLElement
-)
+const App: React.FC<{}> = () => {
+	return (
+		<Layout>
+			<div>
+				<Router store={store}>
+					<Route path="/login">
+						<Login />
+					</Route>
+				</Router>
+			</div>
+		</Layout>
+	)
+}
+
+ReactDOM.render(<App />, document.querySelector('#main'))

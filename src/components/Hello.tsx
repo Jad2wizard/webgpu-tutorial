@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {Button} from 'antd'
-import {getExclamationMarks, testAsync} from 'utils'
+import {getExclamationMarks} from 'utils'
 //import * as THREE from 'three'
 // import {OrbitControls} from 'three-examples/jsm/controls/OrbitControls'
 import styles from './Hello.less'
@@ -22,19 +22,13 @@ const Hello: React.FC<Props> = ({name, enthusiasmLevel = 1}: Props) => {
 		throw new Error('You could be a little more enthusiastic. :D')
 	}
 
-	useEffect(() => {
-		testAsync()
-	}, [])
-
 	const handleClick = useCallback(() => {
 		setCount(count + 1)
 	}, [count])
 
 	return (
 		<div className={styles.hello}>
-			<div className={styles.greeting}>
-				Hello {name + getExclamationMarks(count)}
-			</div>
+			<div className={styles.greeting}>Hello {name + getExclamationMarks(count)}</div>
 			<Button onClick={handleClick}>点击</Button>
 		</div>
 	)

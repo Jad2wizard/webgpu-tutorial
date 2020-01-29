@@ -1,5 +1,5 @@
 {
-	"editor.fontSize": 14,
+	"editor.fontSize": 16,
 	"[javascript]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
@@ -10,12 +10,7 @@
 	"prettier.requireConfig": true,
 	"editor.formatOnSave": true,
 	"jest.autoEnable": false,
-	"eslint.validate": [
-		"javascript",
-		"javascriptreact",
-		"typescript",
-		"typescriptreact"
-	],
+	"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"vim.normalModeKeyBindings": [
 		{
@@ -28,5 +23,7 @@
 			"before": ["<CR>"],
 			"after": ["o", "<Esc>"]
 		}
-	]
+	],
+	"backgroundCover.imagePath": "/Users/yaojia/Pictures/Nujabes/桌面/nujabes-wallpaper-23.jpg",
+	"backgroundCover.opacity": 0.4
 }
