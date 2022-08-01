@@ -7,13 +7,15 @@
 		"declaration": true,
 		"declarationDir": "./typings",
 		"module": "commonjs", //tsc will throw ES6 module error if setting 'es6' in there
-		"target": "es6",
+		// Search under node_modules for non-relative imports.
+		"moduleResolution": "node",
+		"target": "esnext",
 		"jsx": "react",
 		"typeRoots": ["node_modules/@types", "./typings/*"],
 		"baseUrl": ".",
 		"paths": {
 			"three-examples/*": ["node_modules/three/examples/*"],
-			"utils": ["src/utils"]
+			"utils": ["src/webgl/utils"]
 		}
 	},
 	"include": ["./src/**/*"],
