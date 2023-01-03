@@ -1,9 +1,9 @@
-
 uniform vec3 uColor;
+uniform vec3 ambientColor;
 uniform vec3 lightColor;
 uniform vec3 lightDirection;
-uniform vec3 ambientColor;
 uniform float lightIntensity;
+
 varying vec3 vColor;
 
 void main(){

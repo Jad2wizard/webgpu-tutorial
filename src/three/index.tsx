@@ -4,7 +4,6 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls'
 import vert from './shaders/light/vert.glsl'
 import frag from './shaders/light/frag.glsl'
 import styles from './index.less'
-import {Uniform} from 'three'
 
 const {useRef, useCallback, useState, useEffect} = React
 
@@ -54,9 +53,9 @@ export default function ThreeDemo() {
 				fragmentShader: frag,
 				vertexShader: vert,
 				uniforms: {
-					lightIntensity: {value: 1},
+					lightIntensity: {value: 0.8},
 					lightColor: {value: new THREE.Color('#ffffff')},
-					lightDirection: {value: new THREE.Vector3(1, 1, 2).normalize()},
+					lightDirection: {value: new THREE.Vector3(0, 0, 1).normalize()},
 					ambientColor: {value: new THREE.Color('#666666')},
 					uColor: {value: [1, 1, 1]}
 				}
@@ -70,6 +69,8 @@ export default function ThreeDemo() {
 			window.b = mesh
 			//@ts-ignore
 			window.c = camera.current
+			//@ts-ignore
+			window.T = THREE
 			scene.current.add(mesh)
 
 			renderer.current = new THREE.WebGLRenderer({
