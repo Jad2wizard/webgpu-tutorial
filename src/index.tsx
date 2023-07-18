@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 // import Webgl from './webgl'
 import ThreeDemo from './three'
+// import WebGPU from './webgpu'
 
 /* eslint-disable */
 if ((module as any).hot) {

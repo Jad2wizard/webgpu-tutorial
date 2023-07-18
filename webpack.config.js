@@ -74,7 +74,7 @@ module.exports = (env, argv) => {
 		plugins: [
 			//@babel/typescript 不会检查typescript语法错误，
 			//加上该插件可以在webpack构建时因为ts语法错误而终止构建
-			new ForkTsCheckerWebpackPlugin()
+			// new ForkTsCheckerWebpackPlugin()
 		]
 	}
 

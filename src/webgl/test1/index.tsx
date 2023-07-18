@@ -9,7 +9,9 @@ function main(canvas: HTMLCanvasElement) {
 
 	// Only continue if WebGL is available and working
 	if (!gl) {
-		alert('Unable to initialize WebGL. Your browser or machine may not support it.')
+		alert(
+			'Unable to initialize WebGL. Your browser or machine may not support it.'
+		)
 		return
 	}
 
@@ -20,8 +22,14 @@ function main(canvas: HTMLCanvasElement) {
 	const program = createProgram(gl, vertextShader, fragmentShader)
 
 	if (!program) return
-	const positionAttributeLocation = gl.getAttribLocation(program, 'a_position')
-	const resolutionUniformLocation = gl.getUniformLocation(program, 'u_resolution')
+	const positionAttributeLocation = gl.getAttribLocation(
+		program,
+		'a_position'
+	)
+	const resolutionUniformLocation = gl.getUniformLocation(
+		program,
+		'u_resolution'
+	)
 
 	const positionBuffer = gl.createBuffer()
 
