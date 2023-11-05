@@ -3,23 +3,24 @@ const genPositionAndIndex = (
 	innerRadius: number,
 	numSubDivisions: number
 ) => {
-	const position: number[] = []
-	const index: number[] = []
+	const position: number[] = [0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0]
+	const index: number[] = [0, 1, 2, 0, 2, 3]
 	const angleStride = (Math.PI * 2) / numSubDivisions
 	let angle = 0
-	for (let i = 0; i < numSubDivisions; ++i) {
-		position.push(
-			Math.sin(angle) * outerRadius,
-			Math.cos(angle) * outerRadius,
-			angle / (2 * Math.PI),
-			Math.sin(angle) * innerRadius,
-			Math.cos(angle) * innerRadius,
-			angle / (2 * Math.PI)
-		)
-		const ni = i === numSubDivisions - 1 ? 0 : i + 1
-		index.push(i * 2, i * 2 + 1, ni * 2, i * 2 + 1, ni * 2, ni * 2 + 1)
-		angle += angleStride
-	}
+	// for (let i = 0; i < numSubDivisions; ++i) {
+	// 	if (i === 1) break
+	// 	position.push(
+	// 		Math.sin(angle) * outerRadius,
+	// 		Math.cos(angle) * outerRadius,
+	// 		angle / (2 * Math.PI),
+	// 		Math.sin(angle) * innerRadius,
+	// 		Math.cos(angle) * innerRadius,
+	// 		angle / (2 * Math.PI)
+	// 	)
+	// 	const ni = i === numSubDivisions - 1 ? 0 : i + 1
+	// 	index.push(i * 2, i * 2 + 1, ni * 2, i * 2 + 1, ni * 2, ni * 2 + 1)
+	// 	angle += angleStride
+	// }
 	return {
 		vertexData: new Float32Array(position),
 		indexData: new Uint32Array(index),
@@ -49,7 +50,7 @@ async function main(canvas: any) {
 		code: `
 		struct VSOutput { //定义顶点着色器输出，color 作为 inter stage 变量，将顶点颜色通过 location(0) 传给片元着色器
 			@builtin(position) position: vec4f,
-			@location(0) opacity: f32
+			@location(0) color: vec4f
 		}
 		struct OurStruct {
 			scale: f32,
@@ -59,20 +60,27 @@ async function main(canvas: any) {
 		//顶点 attribute 变量结构体，此处用于定义顶点着色器的输入参数
 		struct Vertex {
 			@location(0) position: vec2f, //position attribute，此处的 location(0)和 VSOutput.color 的 location(0) 是不一样的。一个是顶点着色器 attribute 的通道，一个是顶点着色器到片元着色器的 inter-stage 变量通道
-			@location(1) angle: f32, //position attribute，此处的 location(0)和 VSOutput.color 的 location(0) 是不一样的。一个是顶点着色器 attribute 的通道，一个是顶点着色器到片元着色器的 inter-stage 变量通道
+			@builtin(vertex_index) vertexIndex : u32
 		}
 
 		@group(0) @binding(0) var<uniform> ourStruct: OurStruct;
 
 		@vertex fn vs(vert: Vertex) -> VSOutput {
 			var output: VSOutput;
-			output.position = vec4f(vert.position * vec2f(ourStruct.scale), 0, 1);
-			output.opacity = vert.angle;
+			var pos = vert.position;
+			let color = array<vec4f, 4>(
+				vec4f(1, 0, 0, 1),
+				vec4f(0, 1, 0, 1),
+				vec4f(0, 0, 1, 1),
+				vec4f(1, 1, 0, 1),
+			);
+			output.position = vec4f(pos * vec2f(ourStruct.scale), 0, 1);
+			output.color = color[vert.vertexIndex];
 			return output;
 		}
   
-		@fragment fn fs(@location(0) opacity: f32) -> @location(0) vec4f {
-			return vec4f(ourStruct.color, opacity);
+		@fragment fn fs(@location(0) color: vec4f) -> @location(0) vec4f {
+			return color;
 		}
 	  `
 	})
@@ -80,8 +88,9 @@ async function main(canvas: any) {
 	const {vertexData, indexData, numVertices} = genPositionAndIndex(
 		0.45,
 		0.3,
-		16 * 1024
+		16
 	)
+	console.log(vertexData, indexData, numVertices)
 
 	//定义 vertext buffer，该 buffer 存放了position 和 color 两个 attribute
 	const vertexBuffer = device.createBuffer({
@@ -107,19 +116,13 @@ async function main(canvas: any) {
 			buffers: [
 				{
 					//描述第一个 buffer layout，此处并不创建实际的 buffer
-					arrayStride: (2 + 1) * 4, //  等于一个顶点放在 vertexBuff 中的所有 attribute 的数据长度。position attribute 为 vec2f 类型，每个 position 在 buffer 中的长度位2 * 4字节，color 为 3 * 4字节
+					arrayStride: 2 * 4, //  等于一个顶点放在 vertexBuff 中的所有 attribute 的数据长度。position attribute 为 vec2f 类型，每个 position 在 buffer 中的长度位2 * 4字节，color 为 3 * 4字节
 					attributes: [
 						{
 							//position attribute
 							shaderLocation: 0, //每个 attribute 点一个唯一索引值，0-15。shaderLocation 与该 attribute 在顶点着色器中定义的该 attribute 变量的@location 必须保持一致
 							offset: 0, //表示该 attribute 在 buffer 中的偏移字节数
 							format: 'float32x2' //attribute 的数据类型
-						},
-						{
-							//angle attribute
-							shaderLocation: 1, //每个 attribute 点一个唯一索引值，0-15。shaderLocation 与该 attribute 在顶点着色器中定义的该 attribute 变量的@location 必须保持一致
-							offset: 2 * 4, //表示该 attribute 在 buffer 中的偏移字节数
-							format: 'float32' //attribute 的数据类型
 						}
 					]
 				}
@@ -144,8 +147,8 @@ async function main(canvas: any) {
 	//uniformValue 是一个 typedArray，用于写入uniform
 	const uniformValue = new Float32Array(uniformBufferSize / 4)
 	//根据 color,scale,offset 在 OurStruct 中的顺序， 将三个值通过uniformValue 写入 buffer
-	uniformValue.set([0.5], 0) //写入scale， 在 typedArray 中的偏移量为color 的长度，即4
-	uniformValue.set([1, 0, 0], 4) //写入color， 在 typedArray 中的偏移量为0
+	uniformValue.set([1], 0) //写入scale， 在 typedArray 中的偏移量为color 的长度，即4
+	uniformValue.set([0, 0, 0], 4) //写入color， 在 typedArray 中的偏移量为0
 
 	//创建 bindGroup 对象，将 buffer 绑定到@binding(0)位置
 	const bindGroup = device.createBindGroup({

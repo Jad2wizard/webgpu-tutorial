@@ -16,7 +16,6 @@ export default function WebglDemo() {
 
 	return (
 		<div className={styles.container}>
-			<h1 onClick={() => setCount(count + 1)}>{count}</h1>
 			<canvas className={styles.canvas} ref={canvasRef}></canvas>
 		</div>
 	)

@@ -6,7 +6,7 @@
 	"scripts": {
 		"test": "jest --no-cache",
 		"start:prod": "cross-env NODE_ENV=production && forever start app.js",
-		"start": "node app.js",
+		"start": "export NODE_OPTIONS=--openssl-legacy-provider && node app.js",
 		"stop": "forever stop app.js",
 		"build:dev": "npm run build:dll:dev && webpack --mode development",
 		"build": "webpack --mode production",
