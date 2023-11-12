@@ -81,7 +81,7 @@ export default function ThreeDemo() {
 			//@ts-ignore
 			window.s = scene.current
 			//@ts-ignore
-			window.T = THREE
+			window.u = uniforms.current
 
 			renderer.current = new THREE.WebGLRenderer({
 				antialias: true,
@@ -99,7 +99,16 @@ export default function ThreeDemo() {
 
 	return (
 		<div className={styles.threeDemo}>
-			<canvas ref={canvasRef}></canvas>
+			<canvas
+				ref={canvasRef}
+				onMouseMove={e => {
+					if (uniforms.current) {
+						uniforms.current.uMouse.value.x = e.clientX - 200
+						uniforms.current.uMouse.value.y =
+							500 - (e.clientY - 200)
+					}
+				}}
+			></canvas>
 		</div>
 	)
 }

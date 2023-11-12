@@ -3,24 +3,25 @@ const genPositionAndIndex = (
 	innerRadius: number,
 	numSubDivisions: number
 ) => {
-	const position: number[] = [0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0]
-	const index: number[] = [0, 1, 2, 0, 2, 3]
+	// const position: number[] = [0.0, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0]
+	// const index: number[] = [0, 1, 2, 0, 2, 3]
+	const position: number[] = []
+	const index: number[] = []
 	const angleStride = (Math.PI * 2) / numSubDivisions
 	let angle = 0
-	// for (let i = 0; i < numSubDivisions; ++i) {
-	// 	if (i === 1) break
-	// 	position.push(
-	// 		Math.sin(angle) * outerRadius,
-	// 		Math.cos(angle) * outerRadius,
-	// 		angle / (2 * Math.PI),
-	// 		Math.sin(angle) * innerRadius,
-	// 		Math.cos(angle) * innerRadius,
-	// 		angle / (2 * Math.PI)
-	// 	)
-	// 	const ni = i === numSubDivisions - 1 ? 0 : i + 1
-	// 	index.push(i * 2, i * 2 + 1, ni * 2, i * 2 + 1, ni * 2, ni * 2 + 1)
-	// 	angle += angleStride
-	// }
+	for (let i = 0; i < numSubDivisions; ++i) {
+		position.push(
+			Math.sin(angle) * outerRadius,
+			Math.cos(angle) * outerRadius,
+			angle / (2 * Math.PI),
+			Math.sin(angle) * innerRadius,
+			Math.cos(angle) * innerRadius,
+			angle / (2 * Math.PI)
+		)
+		const ni = i === numSubDivisions - 1 ? 0 : i + 1
+		index.push(i * 2, i * 2 + 1, ni * 2, i * 2 + 1, ni * 2 + 1, ni * 2)
+		angle += angleStride
+	}
 	return {
 		vertexData: new Float32Array(position),
 		indexData: new Uint32Array(index),
@@ -50,7 +51,7 @@ async function main(canvas: any) {
 		code: `
 		struct VSOutput { //定义顶点着色器输出，color 作为 inter stage 变量，将顶点颜色通过 location(0) 传给片元着色器
 			@builtin(position) position: vec4f,
-			@location(0) color: vec4f
+			@location(0) angle: f32
 		}
 		struct OurStruct {
 			scale: f32,
@@ -60,6 +61,7 @@ async function main(canvas: any) {
 		//顶点 attribute 变量结构体，此处用于定义顶点着色器的输入参数
 		struct Vertex {
 			@location(0) position: vec2f, //position attribute，此处的 location(0)和 VSOutput.color 的 location(0) 是不一样的。一个是顶点着色器 attribute 的通道，一个是顶点着色器到片元着色器的 inter-stage 变量通道
+			@location(1) angle: f32,
 			@builtin(vertex_index) vertexIndex : u32
 		}
 
@@ -68,19 +70,14 @@ async function main(canvas: any) {
 		@vertex fn vs(vert: Vertex) -> VSOutput {
 			var output: VSOutput;
 			var pos = vert.position;
-			let color = array<vec4f, 4>(
-				vec4f(1, 0, 0, 1),
-				vec4f(0, 1, 0, 1),
-				vec4f(0, 0, 1, 1),
-				vec4f(1, 1, 0, 1),
-			);
+			let color = vec4f(vert.angle, 0, 0, 1);
 			output.position = vec4f(pos * vec2f(ourStruct.scale), 0, 1);
-			output.color = color[vert.vertexIndex];
+			output.angle = vert.angle;
 			return output;
 		}
   
-		@fragment fn fs(@location(0) color: vec4f) -> @location(0) vec4f {
-			return color;
+		@fragment fn fs(@location(0) angle: f32) -> @location(0) vec4f {
+			return vec4f(angle, 0, 0, angle);
 		}
 	  `
 	})
@@ -88,7 +85,7 @@ async function main(canvas: any) {
 	const {vertexData, indexData, numVertices} = genPositionAndIndex(
 		0.45,
 		0.3,
-		16
+		256
 	)
 	console.log(vertexData, indexData, numVertices)
 
@@ -96,6 +93,7 @@ async function main(canvas: any) {
 	const vertexBuffer = device.createBuffer({
 		label: 'vertex buffer vertices',
 		size: vertexData.byteLength,
+		// eslint-disable-next-line no-undef
 		usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
 	})
 	device.queue.writeBuffer(vertexBuffer, 0, vertexData)
@@ -103,6 +101,7 @@ async function main(canvas: any) {
 	const indexBuffer = device.createBuffer({
 		label: 'index buffer',
 		size: indexData.byteLength,
+		// eslint-disable-next-line no-undef
 		usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
 	})
 	device.queue.writeBuffer(indexBuffer, 0, indexData)
@@ -116,13 +115,19 @@ async function main(canvas: any) {
 			buffers: [
 				{
 					//描述第一个 buffer layout，此处并不创建实际的 buffer
-					arrayStride: 2 * 4, //  等于一个顶点放在 vertexBuff 中的所有 attribute 的数据长度。position attribute 为 vec2f 类型，每个 position 在 buffer 中的长度位2 * 4字节，color 为 3 * 4字节
+					arrayStride: 3 * 4, //  等于一个顶点放在 vertexBuff 中的所有 attribute 的数据长度。position attribute 为 vec2f 类型，每个 position 在 buffer 中的长度位2 * 4字节，color 为 3 * 4字节
 					attributes: [
 						{
 							//position attribute
 							shaderLocation: 0, //每个 attribute 点一个唯一索引值，0-15。shaderLocation 与该 attribute 在顶点着色器中定义的该 attribute 变量的@location 必须保持一致
 							offset: 0, //表示该 attribute 在 buffer 中的偏移字节数
 							format: 'float32x2' //attribute 的数据类型
+						},
+						{
+							//angle attribute
+							shaderLocation: 1, //每个 attribute 点一个唯一索引值，0-15。shaderLocation 与该 attribute 在顶点着色器中定义的该 attribute 变量的@location 必须保持一致
+							offset: 2 * 4, //表示该 attribute 在 buffer 中的偏移字节数
+							format: 'float32' //attribute 的数据类型
 						}
 					]
 				}
@@ -162,7 +167,7 @@ async function main(canvas: any) {
 		colorAttachments: [
 			{
 				// view: <- to be filled out when we render
-				clearValue: [0.8, 0.8, 0.8, 1],
+				clearValue: [0, 0, 0, 1],
 				loadOp: 'clear',
 				storeOp: 'store'
 			}

@@ -1,8 +1,8 @@
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 // import Webgl from './webgl'
-import ThreeDemo from './three'
-// import WebGPU from './webgpu'
+// import ThreeDemo from './three'
+import WebGPU from './webgpu'
 
 /* eslint-disable */
 if ((module as any).hot) {
@@ -23,7 +23,7 @@ if ((module as any).hot) {
 // 	ctx.fillRect(0, 0, 200, 100)
 // }
 
-ReactDOM.render(<ThreeDemo />, document.querySelector('#main'))
+ReactDOM.render(<WebGPU />, document.querySelector('#main'))
 // const iframe = document.querySelector('iframe')
 // if (iframe) {
 // 	window.addEventListener('message', e => {
