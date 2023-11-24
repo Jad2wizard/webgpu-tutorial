@@ -41,7 +41,7 @@
 		"@types/three": "^0.136.1",
 		"@typescript-eslint/eslint-plugin": "^2.5.0",
 		"@typescript-eslint/parser": "^2.5.0",
-		"@webgpu/types": "^0.1.32",
+		"@webgpu/types": "^0.1.38",
 		"antd": "^3.16.1",
 		"autoprefixer": "^9.5.0",
 		"awesome-typescript-loader": "^5.2.1",
