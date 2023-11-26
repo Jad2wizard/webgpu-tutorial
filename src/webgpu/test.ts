@@ -1,3 +1,6 @@
+/* eslint-disable no-undef */
+const GRID_SIZE = 32
+
 async function main(canvas: HTMLCanvasElement) {
 	const adapter = await navigator.gpu?.requestAdapter()
 	const device = await adapter?.requestDevice()
@@ -64,14 +67,34 @@ async function main(canvas: HTMLCanvasElement) {
 	const cellShaderModule = device.createShaderModule({
 		label: 'Cell shader',
 		code: `
+		struct VI {
+			@location(0) pos: vec2f, //location(0) 对应layout 中的 shaderLocation
+			@builtin(instance_index) instance: u32
+		}
+
+		struct VO {
+			@builtin(position) pos: vec4f,
+			@location(0) cell: vec2f
+		}
+
+		@group(0) @binding(0) var<uniform> grid: vec2f;
+
 		@vertex //顶点着色器入口函数，返回 顶点在裁剪空间中的坐标[-1, 1]
-		fn vertexMain(@location(0) pos: vec2f)  -> @builtin(position) vec4f { //location(0) 对应layout 中的 shaderLocation
-			return vec4f(pos, 0, 1);
+		fn vertexMain(input: VI)  -> VO { 
+			let i  = f32(input.instance); //instance_index 为内置的实例索引
+			let cell = vec2f(i % grid.x, floor(i / grid.x));
+			let gridPos = (input.pos + cell * 2 + 1) / grid - 1; //由外到内转换裁剪空间坐标系，从[-1, 1] 先转换成 [0, 2], 再转换成 [0, 2 * grid]。一共 grid * grid 个 cell，每个 cell 长宽都为2
+
+			var output: VO;
+			output.pos = vec4f(gridPos, 0, 1);
+			output.cell = cell;
+			return output;
 		}
 
 		@fragment
-		fn fragmentMain() -> @location(0) vec4f { //location(0)表示将颜色写入 beginRenderPass 中的第0个 colorAttachment
-			return vec4f(1, 0, 0, 1);
+		fn fragmentMain(input: VO) -> @location(0) vec4f { //location(0)表示将颜色写入 beginRenderPass 中的第0个 colorAttachment
+			let c = input.cell / grid;
+			return vec4f(c, 1 - c.x, 1);
 		}
 		`
 	})
@@ -97,6 +120,26 @@ async function main(canvas: HTMLCanvasElement) {
 		}
 	})
 
+	const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE])
+	const uniformBuffer = device.createBuffer({
+		label: 'Grid Uniforms',
+		size: uniformArray.byteLength,
+		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+	})
+	device.queue.writeBuffer(uniformBuffer, 0, uniformArray)
+
+	//bindGroup是着色器可以同时访问的资源集合
+	const bindGroup = device.createBindGroup({
+		label: 'Cell render bind group',
+		layout: cellPipeline.getBindGroupLayout(0), //此处的0对应着色器代码中的@group(0)
+		entries: [
+			{
+				binding: 0, //此处的0对应着色器代码中的@binding(0)
+				resource: {buffer: uniformBuffer}
+			}
+		]
+	})
+
 	//GPUCommandEncoder，开始或结束渲染通道。通过 finish 接口创建命令缓冲区 command buffer
 	const encoder = device.createCommandEncoder()
 	//GPURenderPassEncoder，定义一个渲染通道
@@ -112,7 +155,8 @@ async function main(canvas: HTMLCanvasElement) {
 	})
 	pass.setPipeline(cellPipeline)
 	pass.setVertexBuffer(0, vertexBuffer) //将 vertexBuffer 与 pipeline.vertex.buffers[0] 对应起来
-	pass.draw(vertices.length / 2) //传入顶点着色器执行次数,即顶点个数
+	pass.setBindGroup(0, bindGroup) //此处的0对应着色器代码中的@group(0)
+	pass.draw(vertices.length / 2, GRID_SIZE * GRID_SIZE) //传入顶点着色器执行次数,即顶点个数，第二个参数是实例个数
 	pass.end()
 
 	//commandBuffer 提交后就无法再次使用
