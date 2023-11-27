@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-const GRID_SIZE = 64
+const GRID_SIZE = 32
 const WORKGROUP_SIZE = 8
 
 async function main(canvas: HTMLCanvasElement) {
@@ -111,16 +111,35 @@ async function main(canvas: HTMLCanvasElement) {
 		@group(0) @binding(2) var<storage, read_write> cellStateOut: array<u32>;
 
 		fn cellIndex(cell: vec2u) -> u32 {
-			return cell.y * u32(grid.x) + cell.x;
+			return (cell.y % u32(grid.y)) * u32(grid.x) + (cell.x % u32(grid.x));
+		}
+
+		fn cellActive(x: u32, y: u32) -> u32 {
+			return cellStateIn[cellIndex(vec2u(x, y))];
 		}
 
 		@compute @workgroup_size(${WORKGROUP_SIZE}, ${WORKGROUP_SIZE}, 1)
 		fn computeMain(@builtin(global_invocation_id) cell: vec3u){
 			let index = cellIndex(cell.xy);
-			if(cellStateIn[index] == 1){
-				cellStateOut[index] = 0;
-			} else {
-				cellStateOut[index] = 1;
+			let activeNeighbors = cellActive(cell.x+1, cell.y+1) +
+                        cellActive(cell.x+1, cell.y) +
+                        cellActive(cell.x+1, cell.y-1) +
+                        cellActive(cell.x, cell.y-1) +
+                        cellActive(cell.x-1, cell.y-1) +
+                        cellActive(cell.x-1, cell.y) +
+                        cellActive(cell.x-1, cell.y+1) +
+						cellActive(cell.x, cell.y+1);
+			
+			switch activeNeighbors {
+				case 2: {
+					cellStateOut[index] = cellStateIn[index];
+				}
+				case 3: {
+					cellStateOut[index] = 1;
+				}
+				default:{
+					cellStateOut[index] = 0;
+				}
 			}
 		}
 		`
@@ -149,7 +168,10 @@ async function main(canvas: HTMLCanvasElement) {
 			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 		})
 	]
-	for (let i = 0; i < cellStateArray.length; i++) cellStateArray[i] = i % 2
+	for (let i = 0; i < cellStateArray.length; i++) {
+		if (Math.random() > 0.6) cellStateArray[i] = 1
+		else cellStateArray[i] = 0
+	}
 	device.queue.writeBuffer(cellStateStorage[0], 0, cellStateArray)
 
 	const bindGroupLayout = device.createBindGroupLayout({
@@ -252,7 +274,7 @@ async function main(canvas: HTMLCanvasElement) {
 		}
 	})
 
-	const UPDATE_INTERVAL = 1000
+	const UPDATE_INTERVAL = 200
 	let step = 0
 	function updateGrid() {
 		if (!device || !context) return
