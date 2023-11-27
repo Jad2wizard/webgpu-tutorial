@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
-const GRID_SIZE = 32
+const GRID_SIZE = 64
+const WORKGROUP_SIZE = 8
 
 async function main(canvas: HTMLCanvasElement) {
 	const adapter = await navigator.gpu?.requestAdapter()
@@ -78,12 +79,14 @@ async function main(canvas: HTMLCanvasElement) {
 		}
 
 		@group(0) @binding(0) var<uniform> grid: vec2f;
+		@group(0) @binding(1) var<storage> cellState: array<u32>;
 
 		@vertex //顶点着色器入口函数，返回 顶点在裁剪空间中的坐标[-1, 1]
 		fn vertexMain(input: VI)  -> VO { 
 			let i  = f32(input.instance); //instance_index 为内置的实例索引
 			let cell = vec2f(i % grid.x, floor(i / grid.x));
-			let gridPos = (input.pos + cell * 2 + 1) / grid - 1; //由外到内转换裁剪空间坐标系，从[-1, 1] 先转换成 [0, 2], 再转换成 [0, 2 * grid]。一共 grid * grid 个 cell，每个 cell 长宽都为2
+			let  state = f32(cellState[input.instance]);
+			let gridPos = (input.pos * state + cell * 2 + 1) / grid - 1; //由外到内转换裁剪空间坐标系，从[-1, 1] 先转换成 [0, 2], 再转换成 [0, 2 * grid]。一共 grid * grid 个 cell，每个 cell 长宽都为2
 
 			var output: VO;
 			output.pos = vec4f(gridPos, 0, 1);
@@ -99,10 +102,129 @@ async function main(canvas: HTMLCanvasElement) {
 		`
 	})
 
-	/**创建渲染流水线，渲染流水线控制几何图形的绘制方式 */
+	//计算着色器
+	const simulationShaderModule = device.createShaderModule({
+		label: 'Game of Life simulation shader',
+		code: `
+		@group(0) @binding(0) var<uniform> grid: vec2f;
+		@group(0) @binding(1) var<storage> cellStateIn: array<u32>;
+		@group(0) @binding(2) var<storage, read_write> cellStateOut: array<u32>;
+
+		fn cellIndex(cell: vec2u) -> u32 {
+			return cell.y * u32(grid.x) + cell.x;
+		}
+
+		@compute @workgroup_size(${WORKGROUP_SIZE}, ${WORKGROUP_SIZE}, 1)
+		fn computeMain(@builtin(global_invocation_id) cell: vec3u){
+			let index = cellIndex(cell.xy);
+			if(cellStateIn[index] == 1){
+				cellStateOut[index] = 0;
+			} else {
+				cellStateOut[index] = 1;
+			}
+		}
+		`
+	})
+
+	const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE])
+	const uniformBuffer = device.createBuffer({
+		label: 'Grid Uniforms',
+		size: uniformArray.byteLength,
+		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+	})
+	device.queue.writeBuffer(uniformBuffer, 0, uniformArray)
+
+	// 记录 cell  开启状态的数组
+	const cellStateArray = new Uint32Array(GRID_SIZE * GRID_SIZE)
+	//创建一个 storage buffer，具有空间大，计算着色器中可读写的特点，但访问速度没有 uniform buffer 快
+	const cellStateStorage = [
+		device.createBuffer({
+			label: 'Cell State',
+			size: cellStateArray.byteLength,
+			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+		}),
+		device.createBuffer({
+			label: 'Cell State',
+			size: cellStateArray.byteLength,
+			usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+		})
+	]
+	for (let i = 0; i < cellStateArray.length; i++) cellStateArray[i] = i % 2
+	device.queue.writeBuffer(cellStateStorage[0], 0, cellStateArray)
+
+	const bindGroupLayout = device.createBindGroupLayout({
+		label: 'Cell Bind Group Layout',
+		entries: [
+			{
+				binding: 0,
+				visibility:
+					GPUShaderStage.VERTEX |
+					GPUShaderStage.FRAGMENT |
+					GPUShaderStage.COMPUTE,
+				buffer: {} //grid uniform buffer
+			},
+			{
+				binding: 1,
+				visibility: GPUShaderStage.VERTEX | GPUShaderStage.COMPUTE,
+				buffer: {type: 'read-only-storage'} //Cell State Input Storage
+			},
+			{
+				binding: 2,
+				visibility: GPUShaderStage.COMPUTE,
+				buffer: {type: 'storage'} //Cell State Output Storage
+			}
+		]
+	})
+
+	//bindGroup是着色器可以同时访问的资源集合
+	const bindGroups = [
+		device.createBindGroup({
+			label: 'Cell render bind group A',
+			layout: bindGroupLayout, //此处的0对应着色器代码中的@group(0)
+			entries: [
+				{
+					binding: 0, //此处的0对应着色器代码中的@binding(0)
+					resource: {buffer: uniformBuffer}
+				},
+				{
+					binding: 1,
+					resource: {buffer: cellStateStorage[0]}
+				},
+				{
+					binding: 2,
+					resource: {buffer: cellStateStorage[1]}
+				}
+			]
+		}),
+		device.createBindGroup({
+			label: 'Cell render bind group B',
+			layout: bindGroupLayout, // 使用了渲染管线 pipeline 对象中的自动布局
+			entries: [
+				{
+					binding: 0, //此处的0对应着色器代码中的@binding(0)
+					resource: {buffer: uniformBuffer}
+				},
+				{
+					binding: 1,
+					resource: {buffer: cellStateStorage[1]}
+				},
+				{
+					binding: 2,
+					resource: {buffer: cellStateStorage[0]}
+				}
+			]
+		})
+	]
+
+	const pipelineLayout = device.createPipelineLayout({
+		label: 'Cell Pipeline Layout',
+		bindGroupLayouts: [bindGroupLayout] //bindGroupLayouts 中bindGroupLayout 的顺序与着色器中的@group(index)一致
+	})
+
+	/**创建渲染管线，渲染流水线控制几何图形的绘制方式 */
 	const cellPipeline = device.createRenderPipeline({
 		label: 'Cell pipeline',
-		layout: 'auto',
+		layout: pipelineLayout,
 		vertex: {
 			module: cellShaderModule,
 			entryPoint: 'vertexMain',
@@ -120,48 +242,56 @@ async function main(canvas: HTMLCanvasElement) {
 		}
 	})
 
-	const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE])
-	const uniformBuffer = device.createBuffer({
-		label: 'Grid Uniforms',
-		size: uniformArray.byteLength,
-		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-	})
-	device.queue.writeBuffer(uniformBuffer, 0, uniformArray)
-
-	//bindGroup是着色器可以同时访问的资源集合
-	const bindGroup = device.createBindGroup({
-		label: 'Cell render bind group',
-		layout: cellPipeline.getBindGroupLayout(0), //此处的0对应着色器代码中的@group(0)
-		entries: [
-			{
-				binding: 0, //此处的0对应着色器代码中的@binding(0)
-				resource: {buffer: uniformBuffer}
-			}
-		]
+	/**创建计算管线 */
+	const simulationPipeline = device.createComputePipeline({
+		label: 'Simulation pipeline',
+		layout: pipelineLayout, //与渲染管线共用 pipelineLayout
+		compute: {
+			module: simulationShaderModule,
+			entryPoint: 'computeMain'
+		}
 	})
 
-	//GPUCommandEncoder，开始或结束渲染通道。通过 finish 接口创建命令缓冲区 command buffer
-	const encoder = device.createCommandEncoder()
-	//GPURenderPassEncoder，定义一个渲染通道
-	const pass = encoder.beginRenderPass({
-		colorAttachments: [
-			{
-				view: context.getCurrentTexture().createView(), //渲染通道到输出纹理
-				loadOp: 'clear', //渲染通道开启前用clearValue 清空输出纹理，即 canvas
-				storeOp: 'store', //渲染通道完成以后，将绘制结果保存到输出纹理
-				clearValue: {r: 0, g: 0.235, b: 0.3804, a: 0.1} //透明度设置无效
-			}
-		]
-	})
-	pass.setPipeline(cellPipeline)
-	pass.setVertexBuffer(0, vertexBuffer) //将 vertexBuffer 与 pipeline.vertex.buffers[0] 对应起来
-	pass.setBindGroup(0, bindGroup) //此处的0对应着色器代码中的@group(0)
-	pass.draw(vertices.length / 2, GRID_SIZE * GRID_SIZE) //传入顶点着色器执行次数,即顶点个数，第二个参数是实例个数
-	pass.end()
+	const UPDATE_INTERVAL = 1000
+	let step = 0
+	function updateGrid() {
+		if (!device || !context) return
+		//GPUCommandEncoder，开始或结束渲染通道。通过 finish 接口创建命令缓冲区 command buffer
+		const encoder = device.createCommandEncoder()
+		//定义一个计算通道
+		const computePass = encoder.beginComputePass()
+		computePass.setPipeline(simulationPipeline)
+		computePass.setBindGroup(0, bindGroups[step % 2])
+		const workgroupCount = Math.ceil(GRID_SIZE / WORKGROUP_SIZE)
+		computePass.dispatchWorkgroups(workgroupCount, workgroupCount)
+		computePass.end()
+		//GPURenderPassEncoder，定义一个渲染通道
 
-	//commandBuffer 提交后就无法再次使用
-	const commandBuffer = encoder.finish()
-	device.queue.submit([commandBuffer])
+		step++
+
+		const pass = encoder.beginRenderPass({
+			colorAttachments: [
+				{
+					view: context.getCurrentTexture().createView(), //渲染通道到输出纹理
+					loadOp: 'clear', //渲染通道开启前用clearValue 清空输出纹理，即 canvas
+					storeOp: 'store', //渲染通道完成以后，将绘制结果保存到输出纹理
+					clearValue: {r: 0, g: 0.235, b: 0.3804, a: 0.1} //透明度设置无效
+				}
+			]
+		})
+		pass.setPipeline(cellPipeline)
+		pass.setVertexBuffer(0, vertexBuffer) //将 vertexBuffer 与 pipeline.vertex.buffers[0] 对应起来
+		pass.setBindGroup(0, bindGroups[step % 2]) //此处的0对应着色器代码中的@group(0)
+		pass.draw(vertices.length / 2, GRID_SIZE * GRID_SIZE) //传入顶点着色器执行次数,即顶点个数，第二个参数是实例个数
+		pass.end()
+
+		//commandBuffer 提交后就无法再次使用
+		const commandBuffer = encoder.finish()
+		device.queue.submit([commandBuffer])
+	}
+
+	// updateGrid()
+	setInterval(updateGrid, UPDATE_INTERVAL)
 }
 
 export default main
