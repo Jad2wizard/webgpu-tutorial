@@ -174,79 +174,10 @@ async function main(canvas: HTMLCanvasElement) {
 	}
 	device.queue.writeBuffer(cellStateStorage[0], 0, cellStateArray)
 
-	const bindGroupLayout = device.createBindGroupLayout({
-		label: 'Cell Bind Group Layout',
-		entries: [
-			{
-				binding: 0,
-				visibility:
-					GPUShaderStage.VERTEX |
-					GPUShaderStage.FRAGMENT |
-					GPUShaderStage.COMPUTE,
-				buffer: {} //grid uniform buffer
-			},
-			{
-				binding: 1,
-				visibility: GPUShaderStage.VERTEX | GPUShaderStage.COMPUTE,
-				buffer: {type: 'read-only-storage'} //Cell State Input Storage
-			},
-			{
-				binding: 2,
-				visibility: GPUShaderStage.COMPUTE,
-				buffer: {type: 'storage'} //Cell State Output Storage
-			}
-		]
-	})
-
-	//bindGroup是着色器可以同时访问的资源集合
-	const bindGroups = [
-		device.createBindGroup({
-			label: 'Cell render bind group A',
-			layout: bindGroupLayout, //此处的0对应着色器代码中的@group(0)
-			entries: [
-				{
-					binding: 0, //此处的0对应着色器代码中的@binding(0)
-					resource: {buffer: uniformBuffer}
-				},
-				{
-					binding: 1,
-					resource: {buffer: cellStateStorage[0]}
-				},
-				{
-					binding: 2,
-					resource: {buffer: cellStateStorage[1]}
-				}
-			]
-		}),
-		device.createBindGroup({
-			label: 'Cell render bind group B',
-			layout: bindGroupLayout, // 使用了渲染管线 pipeline 对象中的自动布局
-			entries: [
-				{
-					binding: 0, //此处的0对应着色器代码中的@binding(0)
-					resource: {buffer: uniformBuffer}
-				},
-				{
-					binding: 1,
-					resource: {buffer: cellStateStorage[1]}
-				},
-				{
-					binding: 2,
-					resource: {buffer: cellStateStorage[0]}
-				}
-			]
-		})
-	]
-
-	const pipelineLayout = device.createPipelineLayout({
-		label: 'Cell Pipeline Layout',
-		bindGroupLayouts: [bindGroupLayout] //bindGroupLayouts 中bindGroupLayout 的顺序与着色器中的@group(index)一致
-	})
-
 	/**创建渲染管线，渲染流水线控制几何图形的绘制方式 */
 	const cellPipeline = device.createRenderPipeline({
 		label: 'Cell pipeline',
-		layout: pipelineLayout,
+		layout: 'auto',
 		vertex: {
 			module: cellShaderModule,
 			entryPoint: 'vertexMain',
@@ -267,12 +198,83 @@ async function main(canvas: HTMLCanvasElement) {
 	/**创建计算管线 */
 	const simulationPipeline = device.createComputePipeline({
 		label: 'Simulation pipeline',
-		layout: pipelineLayout, //与渲染管线共用 pipelineLayout
+		layout: 'auto', //与渲染管线共用 pipelineLayout
 		compute: {
 			module: simulationShaderModule,
 			entryPoint: 'computeMain'
 		}
 	})
+
+	//bindGroup是着色器可以同时访问的资源集合
+	const cellBindGroups = [
+		device.createBindGroup({
+			label: 'Cell render bind group A',
+			layout: cellPipeline.getBindGroupLayout(0), //此处的0对应着色器代码中的@group(0)
+			entries: [
+				{
+					binding: 0, //此处的0对应着色器代码中的@binding(0)
+					resource: {buffer: uniformBuffer}
+				},
+				{
+					binding: 1,
+					resource: {buffer: cellStateStorage[0]}
+				}
+			]
+		}),
+		device.createBindGroup({
+			label: 'Cell render bind group B',
+			layout: cellPipeline.getBindGroupLayout(0), // 使用了渲染管线 pipeline 对象中的自动布局
+			entries: [
+				{
+					binding: 0, //此处的0对应着色器代码中的@binding(0)
+					resource: {buffer: uniformBuffer}
+				},
+				{
+					binding: 1,
+					resource: {buffer: cellStateStorage[1]}
+				}
+			]
+		})
+	]
+
+	const simulationBindGroups = [
+		device.createBindGroup({
+			label: 'simulation bind group A',
+			layout: simulationPipeline.getBindGroupLayout(0),
+			entries: [
+				{
+					binding: 0, //此处的0对应着色器代码中的@binding(0)
+					resource: {buffer: uniformBuffer}
+				},
+				{
+					binding: 1,
+					resource: {buffer: cellStateStorage[0]}
+				},
+				{
+					binding: 2,
+					resource: {buffer: cellStateStorage[1]}
+				}
+			]
+		}),
+		device.createBindGroup({
+			label: 'simulation bind group B',
+			layout: simulationPipeline.getBindGroupLayout(0),
+			entries: [
+				{
+					binding: 0, //此处的0对应着色器代码中的@binding(0)
+					resource: {buffer: uniformBuffer}
+				},
+				{
+					binding: 1,
+					resource: {buffer: cellStateStorage[1]}
+				},
+				{
+					binding: 2,
+					resource: {buffer: cellStateStorage[0]}
+				}
+			]
+		})
+	]
 
 	const UPDATE_INTERVAL = 200
 	let step = 0
@@ -283,7 +285,7 @@ async function main(canvas: HTMLCanvasElement) {
 		//定义一个计算通道
 		const computePass = encoder.beginComputePass()
 		computePass.setPipeline(simulationPipeline)
-		computePass.setBindGroup(0, bindGroups[step % 2])
+		computePass.setBindGroup(0, simulationBindGroups[step % 2])
 		const workgroupCount = Math.ceil(GRID_SIZE / WORKGROUP_SIZE)
 		computePass.dispatchWorkgroups(workgroupCount, workgroupCount)
 		computePass.end()
@@ -303,7 +305,7 @@ async function main(canvas: HTMLCanvasElement) {
 		})
 		pass.setPipeline(cellPipeline)
 		pass.setVertexBuffer(0, vertexBuffer) //将 vertexBuffer 与 pipeline.vertex.buffers[0] 对应起来
-		pass.setBindGroup(0, bindGroups[step % 2]) //此处的0对应着色器代码中的@group(0)
+		pass.setBindGroup(0, cellBindGroups[step % 2]) //此处的0对应着色器代码中的@group(0)
 		pass.draw(vertices.length / 2, GRID_SIZE * GRID_SIZE) //传入顶点着色器执行次数,即顶点个数，第二个参数是实例个数
 		pass.end()
 
