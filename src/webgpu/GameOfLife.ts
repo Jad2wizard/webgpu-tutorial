@@ -75,7 +75,7 @@ async function main(canvas: HTMLCanvasElement) {
 
 		struct VO {
 			@builtin(position) pos: vec4f,
-			@location(0) cell: vec2f
+			@location(0) cellCoord: vec2f
 		}
 
 		@group(0) @binding(0) var<uniform> grid: vec2f;
@@ -84,19 +84,19 @@ async function main(canvas: HTMLCanvasElement) {
 		@vertex //顶点着色器入口函数，返回 顶点在裁剪空间中的坐标[-1, 1]
 		fn vertexMain(input: VI)  -> VO { 
 			let i  = f32(input.instance); //instance_index 为内置的实例索引
-			let cell = vec2f(i % grid.x, floor(i / grid.x));
+			let cellCoord = vec2f(i % grid.x, floor(i / grid.x));
 			let  state = f32(cellState[input.instance]);
-			let gridPos = (input.pos * state + cell * 2 + 1) / grid - 1; //由外到内转换裁剪空间坐标系，从[-1, 1] 先转换成 [0, 2], 再转换成 [0, 2 * grid]。一共 grid * grid 个 cell，每个 cell 长宽都为2
+			let gridPos = (input.pos * state + cellCoord * 2 + 1) / grid - 1; //由外到内转换裁剪空间坐标系，从[-1, 1] 先转换成 [0, 2], 再转换成 [0, 2 * grid]。一共 grid * grid 个 cell，每个 cell 长宽都为2
 
 			var output: VO;
 			output.pos = vec4f(gridPos, 0, 1);
-			output.cell = cell;
+			output.cellCoord = cellCoord;
 			return output;
 		}
 
 		@fragment
 		fn fragmentMain(input: VO) -> @location(0) vec4f { //location(0)表示将颜色写入 beginRenderPass 中的第0个 colorAttachment
-			let c = input.cell / grid;
+			let c = input.cellCoord / grid;
 			return vec4f(c, 1 - c.x, 1);
 		}
 		`
@@ -140,6 +140,9 @@ async function main(canvas: HTMLCanvasElement) {
 				default:{
 					cellStateOut[index] = 0;
 				}
+				// default: {
+				// 	cellStateOut[index] = cellStateIn[index];
+				// }
 			}
 		}
 		`
@@ -169,7 +172,7 @@ async function main(canvas: HTMLCanvasElement) {
 		})
 	]
 	for (let i = 0; i < cellStateArray.length; i++) {
-		if (Math.random() > 0.6) cellStateArray[i] = 1
+		if (Math.random() > 0.5) cellStateArray[i] = 1
 		else cellStateArray[i] = 0
 	}
 	device.queue.writeBuffer(cellStateStorage[0], 0, cellStateArray)
@@ -305,7 +308,7 @@ async function main(canvas: HTMLCanvasElement) {
 		})
 		pass.setPipeline(cellPipeline)
 		pass.setVertexBuffer(0, vertexBuffer) //将 vertexBuffer 与 pipeline.vertex.buffers[0] 对应起来
-		pass.setBindGroup(0, cellBindGroups[step % 2]) //此处的0对应着色器代码中的@group(0)
+		pass.setBindGroup(0, cellBindGroups[step % 2]) //此处的0对应着色器代码中的@group(0)，是bindGroup在管线布局中的索引
 		pass.draw(vertices.length / 2, GRID_SIZE * GRID_SIZE) //传入顶点着色器执行次数,即顶点个数，第二个参数是实例个数
 		pass.end()
 

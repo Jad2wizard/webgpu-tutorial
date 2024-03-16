@@ -1,5 +1,5 @@
 import * as React from 'react'
-import test from './test'
+import gameOfLife from './GameOfLife'
 import styles from './index.less'
 
 const {useCallback} = React
@@ -10,7 +10,7 @@ export default function WebglDemo() {
 		if (dom) {
 			dom.width = dom.offsetWidth
 			dom.height = dom.offsetHeight
-			test(dom)
+			gameOfLife(dom)
 		}
 	}, [])
 
